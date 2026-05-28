@@ -401,15 +401,20 @@
             if (activeTrack !== 'battle' && activeTrack !== 'sfx_playing') {
                 audioExplore.pause();
                 audioExplore.currentTime = 0; 
-                audioBattle.play().catch(e => console.log(e));
+                audioBattle.play().catch(e => console.log("Battle audio playback blocked:", e));
                 activeTrack = 'battle';
             }
         } else {
             if (activeTrack !== 'explore') {
                 audioBattle.pause();
                 audioBattle.currentTime = 0; 
-                audioExplore.play().catch(e => console.log(e));
-                activeTrack = 'explore';
+                // Enhanced execution tree safely catches mobile Safari media stalls
+                audioExplore.play()
+                    .then(() => { activeTrack = 'explore'; })
+                    .catch(e => {
+                        console.log("Explore audio retry scheduled:", e);
+                        setTimeout(() => { if(!isPaused && !isGameOver) audioExplore.play().catch(err => {}); }, 150);
+                    });
             }
         }
     }
@@ -417,11 +422,22 @@
     function unlockAudioStream() {
         if (userHasInteracted) return;
         userHasInteracted = true;
-        audioExplore.play().then(() => audioExplore.pause()).catch(e => {});
-        audioBattle.play().then(() => audioBattle.pause()).catch(e => {});
-        audioCatch.play().then(() => audioCatch.pause()).catch(e => {});
-        audioRunaway.play().then(() => audioRunaway.pause()).catch(e => {});
-        syncTrackState();
+        
+        // Step 1: Force hardware activation across all media stream fragments
+        const contextAudioTracks = [audioExplore, audioBattle, audioCatch, audioRunaway];
+        contextAudioTracks.forEach(track => {
+            track.play()
+                .then(() => {
+                    track.pause();
+                    track.currentTime = 0;
+                })
+                .catch(err => console.log("Hardware priming skipped:", err));
+        });
+
+        // Step 2: Introduce a 100ms air buffer to allow iOS sound server handshake to clear
+        setTimeout(() => {
+            syncTrackState();
+        }, 100);
     }
 
     window.addEventListener("click", unlockAudioStream);
