@@ -206,6 +206,7 @@
         .success-text { color: #00ff66; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); }
         .fail-text { color: #ff9800; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); }
 
+        /* End Match Layout Mechanics */
         #gameover-title {
             font-size: 34px;
             color: #ffde00;
@@ -312,6 +313,65 @@
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
         }
 
+        /* Drum Roll & Ceremony Visual Styling System */
+        #drumroll-curtain {
+            background: radial-gradient(circle, #1a103c 20%, #050211 90%);
+            animation: flashingBackground 0.2s infinite alternate;
+        }
+
+        @keyframes flashingBackground {
+            0% { background-color: #120933; }
+            100% { background-color: #240a36; }
+        }
+
+        .drumroll-text-pulse {
+            font-size: 44px;
+            font-weight: 900;
+            color: #ffde00;
+            text-shadow: 0 0 20px #ffea00, 4px 4px 0px #3b4cca;
+            animation: textShake 0.15s infinite;
+            margin-bottom: 20px;
+            letter-spacing: 2px;
+        }
+
+        @keyframes textShake {
+            0% { transform: translate(2px, 1px) rotate(0deg); }
+            10% { transform: translate(-1px, -2px) rotate(-1deg); }
+            20% { transform: translate(-3px, 0px) rotate(1deg); }
+            30% { transform: translate(0px, 2px) rotate(0deg); }
+            40% { transform: translate(1px, -1px) rotate(1deg); }
+            50% { transform: translate(-1px, 2px) rotate(-1deg); }
+            60% { transform: translate(-3px, 1px) rotate(0deg); }
+            70% { transform: translate(2px, 1px) rotate(-1deg); }
+            80% { transform: translate(-1px, -1px) rotate(1deg); }
+            90% { transform: translate(2px, 2px) rotate(0deg); }
+            100% { transform: translate(1px, -2px) rotate(-1deg); }
+        }
+
+        .ceremony-winner-banner {
+            font-size: 38px;
+            font-weight: bold;
+            text-align: center;
+            color: #ffffff;
+            text-shadow: 0 0 25px rgba(255,255,255,0.6);
+            transform: scale(0);
+            transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            margin-top: 15px;
+            padding: 15px 30px;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 3px dashed #ffde00;
+        }
+
+        .ceremony-winner-banner.pop-reveal {
+            transform: scale(1);
+        }
+
+        .winner-p1-color { color: #26ff26 !important; text-shadow: 0 0 20px #00ff00, 3px 3px 0px #000; }
+        .winner-p2-color { color: #ff3333 !important; text-shadow: 0 0 20px #ff0000, 3px 3px 0px #000; }
+        .winner-tie-color { color: #00ffff !important; text-shadow: 0 0 20px #00ffff, 3px 3px 0px #000; }
+
+        /* Arcade Flank Panels */
         .arcade-controls-flank {
             width: 100%;
             height: 100%;
@@ -424,6 +484,11 @@
             <div id="feedback-banner"></div>
         </div>
 
+        <div id="drumroll-curtain" class="game-overlay">
+            <div id="drumroll-status" class="drumroll-text-pulse">🥁 DRUM ROLL PLEASE... 🥁</div>
+            <div id="ceremony-winner-box" class="ceremony-winner-banner"></div>
+        </div>
+
         <div id="gameover-popup" class="game-overlay">
             <h1 id="gameover-title">🏁 Match Complete! 🏁</h1>
             
@@ -518,6 +583,10 @@
     
     const mathPopup = document.getElementById("math-popup");
     const gameoverPopup = document.getElementById("gameover-popup");
+    const drumrollCurtain = document.getElementById("drumroll-curtain");
+    const drumrollStatus = document.getElementById("drumroll-status");
+    const ceremonyWinnerBox = document.getElementById("ceremony-winner-box");
+    
     const pokemonMsg = document.getElementById("popup-pokemon-message");
     const pokemonImgElement = document.getElementById("pokemon-image");
     const pokeballSvgDisplay = document.getElementById("pokeball-svg-display");
@@ -530,7 +599,9 @@
     const GRID_SIZE = 20;
     const HUD_HEIGHT = 100; 
 
+    // EXACTLY 62 POKEMON
     const POKEMON_LIST = [
+        // --- Normal Pool (45 Pokemon) ---
         { id: "1", name: "Bulbasaur", tier: "normal" }, { id: "2", name: "Ivysaur", tier: "normal" }, { id: "3", name: "Venusaur", tier: "normal" },
         { id: "4", name: "Charmander", tier: "normal" }, { id: "5", name: "Charmeleon", tier: "normal" }, { id: "6", name: "Charizard", tier: "normal" },
         { id: "7", name: "Squirtle", tier: "normal" }, { id: "8", name: "Wartortle", tier: "normal" }, { id: "9", name: "Blastoise", tier: "normal" },
@@ -544,18 +615,16 @@
         { id: "113", name: "Chansey", tier: "normal" }, { id: "131", name: "Lapras", tier: "normal" }, { id: "132", name: "Ditto", tier: "normal" },
         { id: "133", name: "Eevee", tier: "normal" }, { id: "134", name: "Vaporeon", tier: "normal" }, { id: "135", name: "Jolteon", tier: "normal" },
         { id: "136", name: "Flareon", tier: "normal" }, { id: "143", name: "Snorlax", tier: "normal" }, { id: "149", name: "Dragonite", tier: "normal" }, 
-        { id: "175", name: "Togepi", tier: "normal" },
+        { id: "175", name: "Togepi", tier: "normal" }, { id: "197", name: "Umbreon", tier: "normal" }, { id: "248", name: "Tyranitar", tier: "normal" },
+        { id: "393", name: "Piplup", tier: "normal" }, { id: "445", name: "Garchomp", tier: "normal" }, { id: "448", name: "Lucario", tier: "normal" },
 
-        { id: "144", name: "Articuno", tier: "legendary" }, 
-        { id: "145", name: "Zapdos", tier: "legendary" }, 
-        { id: "146", name: "Moltres", tier: "legendary" }, 
-        { id: "150", name: "Mewtwo", tier: "legendary" }, 
-        { id: "151", name: "Mew", tier: "legendary" },
-        { id: "382", name: "Kyogre", tier: "legendary" },  
-        { id: "791", name: "Solgaleo", tier: "legendary" }, 
-        { id: "1007", name: "Koraidon", tier: "legendary" },
-        { id: "249", name: "Lugia", tier: "legendary" },   
-        { id: "250", name: "Ho-Oh", tier: "legendary" }    
+        // --- Legendary Pool (17 Pokemon) ---
+        { id: "144", name: "Articuno", tier: "legendary" }, { id: "145", name: "Zapdos", tier: "legendary" }, { id: "146", name: "Moltres", tier: "legendary" }, 
+        { id: "150", name: "Mewtwo", tier: "legendary" }, { id: "151", name: "Mew", tier: "legendary" }, { id: "382", name: "Kyogre", tier: "legendary" },  
+        { id: "791", name: "Solgaleo", tier: "legendary" }, { id: "1007", name: "Koraidon", tier: "legendary" }, { id: "249", name: "Lugia", tier: "legendary" },   
+        { id: "250", name: "Ho-Oh", tier: "legendary" }, { id: "792", name: "Lunala", tier: "legendary" }, { id: "493", name: "Arceus", tier: "legendary" }, 
+        { id: "245", name: "Suicune", tier: "legendary" }, { id: "778", name: "Mimikyu", tier: "legendary" }, { id: "383", name: "Groudon", tier: "legendary" },
+        { id: "10034", name: "Mega Charizard X", tier: "legendary" }, { id: "10035", name: "Mega Charizard Y", tier: "legendary" }
     ];
 
     let snake1, dir1, nextDir1, baseSpeed1;
@@ -608,7 +677,7 @@
 
             if (matchTimeRemaining <= 0) {
                 matchTimeRemaining = 0;
-                triggerGameOver();
+                triggerWinnerCeremonySequence();
             }
         }
     }
@@ -617,6 +686,9 @@
         gameoverPopup.classList.remove("show");
         mathPopup.classList.remove("show");
         mathPopup.classList.remove("legendary-popup-active");
+        drumrollCurtain.classList.remove("show");
+        ceremonyWinnerBox.classList.remove("pop-reveal");
+        ceremonyWinnerBox.className = "ceremony-winner-banner";
 
         snake1 = [{x: 160, y: 200}, {x: 140, y: 200}, {x: 120, y: 200}];
         dir1 = "RIGHT"; nextDir1 = "RIGHT"; baseSpeed1 = 2.5; grow1 = 0;
@@ -741,7 +813,7 @@
 
     function triggerMathPopup(triggeringPlayerId) {
         if (availablePokemonDeck.length === 0) {
-            triggerGameOver();
+            triggerWinnerCeremonySequence();
             return;
         }
 
@@ -828,11 +900,55 @@
         }
     }
 
+    /* NEW: Drum Roll & Winner Announcement Ceremony Engine */
+    function triggerWinnerCeremonySequence() {
+        isPaused = true;
+        if(systemClockIntervalId) clearInterval(systemClockIntervalId);
+        
+        audioExplore.pause();
+        audioBattle.pause();
+
+        // 1. Activate drum roll view
+        drumrollStatus.textContent = "🥁 DRUM ROLL PLEASE... 🥁";
+        ceremonyWinnerBox.classList.remove("pop-reveal");
+        drumrollCurtain.classList.add("show");
+
+        // 2. Compute winner strings and classes
+        let winnerMessage = "";
+        let colorClass = "";
+
+        if (p1Points > p2Points) {
+            winnerMessage = "👑 WINNER: PLAYER 1 (GREEN) 👑";
+            colorClass = "winner-p1-color";
+        } else if (p2Points > p1Points) {
+            winnerMessage = "👑 WINNER: PLAYER 2 (RED) 👑";
+            colorClass = "winner-p2-color";
+        } else {
+            winnerMessage = "🤝 IT'S A TIE SCORE MATCH! 🤝";
+            colorClass = "winner-tie-color";
+        }
+
+        // 3. Drop down winner banner after 2 seconds
+        setTimeout(() => {
+            drumrollStatus.textContent = "✨ AND THE WINNER IS... ✨";
+            ceremonyWinnerBox.textContent = winnerMessage;
+            ceremonyWinnerBox.className = "ceremony-winner-banner pop-reveal " + colorClass;
+            
+            // Re-use capture audio stream for a victory ding effect
+            audioCatch.currentTime = 0;
+            audioCatch.play().catch(e => {});
+        }, 2200);
+
+        // 4. Move completely into the final stat overview boards after 4.5 seconds
+        setTimeout(() => {
+            drumrollCurtain.classList.remove("show");
+            triggerGameOver();
+        }, 5500);
+    }
+
     function triggerGameOver() {
         isGameOver = true;
         isPaused = true;
-        if(systemClockIntervalId) clearInterval(systemClockIntervalId);
-        syncTrackState(); 
 
         document.getElementById("p1-final-score").textContent = `Points: ${p1Points}`;
         document.getElementById("p2-final-score").textContent = `Points: ${p2Points}`;
@@ -973,7 +1089,7 @@
                 isPaused = false;
                 isProcessingAnswer = false;
                 if (availablePokemonDeck.length === 0) {
-                    triggerGameOver();
+                    triggerWinnerCeremonySequence();
                 } else {
                     syncTrackState();
                     spawnFoodPokeball();
@@ -1069,7 +1185,6 @@
         
         gameFrameCount++;
 
-        // Calculate independent delta delays for each player snake based on their true speed state
         const delayP1 = 1000 / calculateCurrentSpeedP1();
         const delayP2 = 1000 / calculateCurrentSpeedP2();
 
@@ -1165,7 +1280,7 @@
         const s2SelfCrash = snake2.some((seg, idx) => idx !== 0 && seg.x === head2.x && seg.y === head2.y);
         
         if (s1SelfCrash || s2SelfCrash) {
-            triggerGameOver();
+            triggerWinnerCeremonySequence();
         }
     }
 
@@ -1335,7 +1450,6 @@
     document.getElementById("p2-left").addEventListener("touchstart", (e) => { e.preventDefault(); handleInputP2("LEFT"); });
     document.getElementById("p2-right").addEventListener("touchstart", (e) => { e.preventDefault(); handleInputP2("RIGHT"); });
 
-    // Desktop Key mappings
     window.addEventListener("keydown", (e) => {
         const key = e.key.toUpperCase();
         if (key === "W") handleInputP1("UP");
