@@ -6,7 +6,7 @@
     <title>Catch them all! - 2 Player Bonus Power-Up Edition</title>
     <style>
         body {
-            font-family: 'Comic Sans MS', 'Chalkboard SE', cursive, sans-serif;
+            font-family: Arial, Helvetica, sans-serif;
             background-color: #ffd700; 
             margin: 0;
             padding: 0;
@@ -230,8 +230,8 @@
             flex-direction: column;
         }
 
-        .player-summary-box.p1-box { border-color: #2e7d32; background: rgba(76, 175, 80, 0.15); }
-        .player-summary-box.p2-box { border-color: #c62828; background: rgba(244, 67, 54, 0.15); }
+        .player-summary-box.p1-box { border-color: #4caf50; background: rgba(76, 175, 80, 0.15); }
+        .player-summary-box.p2-box { border-color: #f44336; background: rgba(244, 67, 54, 0.15); }
 
         .summary-header {
             font-size: 18px;
@@ -387,15 +387,15 @@
 <audio id="audio-runaway" preload="auto"><source src="runaway.mp3" type="audio/mpeg"></audio>
 
 <div id="console-wrapper">
-    <div class="arcade-controls-flank" id="controls-p2">
-        <div class="control-label">🔴 PLAYER 2 (Red)</div>
-        <div class="dpad-row"><div class="dpad-btn" id="p2-up">▲</div></div>
+    <div class="arcade-controls-flank" id="controls-p1">
+        <div class="control-label">🟢 PLAYER 1 (Green)</div>
+        <div class="dpad-row"><div class="dpad-btn" id="p1-up">▲</div></div>
         <div class="dpad-row">
-            <div class="dpad-btn" id="p2-left">◀</div>
+            <div class="dpad-btn" id="p1-left">◀</div>
             <div class="dpad-spacer"></div>
-            <div class="dpad-btn" id="p2-right">▶</div>
+            <div class="dpad-btn" id="p1-right">▶</div>
         </div>
-        <div class="dpad-row"><div class="dpad-btn" id="p2-down">▼</div></div>
+        <div class="dpad-row"><div class="dpad-btn" id="p1-down">▼</div></div>
     </div>
 
     <div id="screen-container">
@@ -446,15 +446,15 @@
         <canvas id="gameCanvas" width="800" height="600"></canvas>
     </div>
 
-    <div class="arcade-controls-flank" id="controls-p1">
-        <div class="control-label">🟢 PLAYER 1 (Green)</div>
-        <div class="dpad-row"><div class="dpad-btn" id="p1-up">▲</div></div>
+    <div class="arcade-controls-flank" id="controls-p2">
+        <div class="control-label">🔴 PLAYER 2 (Red)</div>
+        <div class="dpad-row"><div class="dpad-btn" id="p2-up">▲</div></div>
         <div class="dpad-row">
-            <div class="dpad-btn" id="p1-left">◀</div>
+            <div class="dpad-btn" id="p2-left">◀</div>
             <div class="dpad-spacer"></div>
-            <div class="dpad-btn" id="p1-right">▶</div>
+            <div class="dpad-btn" id="p2-right">▶</div>
         </div>
-        <div class="dpad-row"><div class="dpad-btn" id="p1-down">▼</div></div>
+        <div class="dpad-row"><div class="dpad-btn" id="p2-down">▼</div></div>
     </div>
 </div>
 
@@ -565,7 +565,6 @@
     let p1Points = 0, p2Points = 0;
     let p1Caught = [], p2Caught = [];
 
-    // Active power-up remaining clock cycles tracking (in match-seconds)
     let p1StarTime = 0, p1WormTime = 0;
     let p2StarTime = 0, p2WormTime = 0;
 
@@ -579,7 +578,7 @@
     let matchTimeRemaining = MATCH_TOTAL_SECONDS;
     let systemClockIntervalId = null;
 
-    let currentQuestion, activeFood, currentSelectedPokemon;
+    let currentQuestion, activeFoodPokeball, activeSpecialItem;
     let lastRenderTime = 0;
     let isPaused = false;
     let isGameOver = false; 
@@ -600,7 +599,6 @@
         if (!isPaused && !isGameOver) {
             matchTimeRemaining--;
             
-            // Count down active status flags tracking independent power-ups safely
             if (p1StarTime > 0) p1StarTime--;
             if (p1WormTime > 0) p1WormTime--;
             if (p2StarTime > 0) p2StarTime--;
@@ -645,7 +643,9 @@
 
         availablePokemonDeck = [...POKEMON_LIST];
         shuffleDeck();
-        spawnFood();
+        
+        spawnFoodPokeball();
+        activeSpecialItem = null; 
         
         lastRenderTime = performance.now();
         if (!animationFrameId) {
@@ -702,7 +702,10 @@
 
             const c1 = snake1.some(seg => seg.x === x && seg.y === y);
             const c2 = snake2.some(seg => seg.x === x && seg.y === y);
-            if (!c1 && !c2) {
+            const cFood = activeFoodPokeball && activeFoodPokeball.pos.x === x && activeFoodPokeball.pos.y === y;
+            const cSpec = activeSpecialItem && activeSpecialItem.pos.x === x && activeSpecialItem.pos.y === y;
+            
+            if (!c1 && !c2 && !cFood && !cSpec) {
                 pos = {x, y};
                 break;
             }
@@ -710,21 +713,23 @@
         return pos;
     }
 
-    function spawnFood() {
-        // Evaluate spawning mechanics to inject special items periodically
+    function spawnFoodPokeball() {
+        activeFoodPokeball = {
+            pos: getRandomGridPos(),
+            name: "Pokeball"
+        };
+    }
+
+    function checkAndSpawnSpecialItem() {
+        if (activeSpecialItem) return; 
         if (pokeballsEatenCounter >= nextBonusTargetInterval) {
             pokeballsEatenCounter = 0; 
             determineNextBonusInterval();
             
             const randomType = Math.random() < 0.5 ? "star" : "worm";
-            activeFood = {
+            activeSpecialItem = {
                 pos: getRandomGridPos(),
                 name: randomType
-            };
-        } else {
-            activeFood = {
-                pos: getRandomGridPos(),
-                name: "Pokeball"
             };
         }
     }
@@ -900,19 +905,24 @@
     }
 
     function handleBonusCollection(playerNum, bonusType) {
-        // Star gives a 1.5x speed boost to yourself for 30s
-        // Worm slashes opponent speed in half for 15s
         if (bonusType === "star") {
             if (playerNum === 1) p1StarTime = 30; else p2StarTime = 30;
+            // Play an enthusiastic catch burst sound variant for Star consumption
+            audioCatch.currentTime = 0;
+            audioCatch.playbackRate = 1.4; 
+            audioCatch.play().catch(e => {});
         } else if (bonusType === "worm") {
             if (playerNum === 1) p2WormTime = 15; else p1WormTime = 15;
+            // Play a slightly modulated catch sound variant for Worm interaction
+            audioCatch.currentTime = 0;
+            audioCatch.playbackRate = 0.75; 
+            audioCatch.play().catch(e => {});
         }
         
-        // Trigger subtle positive audio reward for capturing items
-        audioCatch.currentTime = 0;
-        audioCatch.play().catch(e => {});
-
-        spawnFood();
+        // Reset playback rate back to standard state
+        setTimeout(() => { audioCatch.playbackRate = 1.0; }, 1000);
+        
+        activeSpecialItem = null; 
     }
 
     mathAnswerInput.addEventListener("keydown", function(e) {
@@ -973,7 +983,7 @@
                     triggerGameOver();
                 } else {
                     syncTrackState();
-                    spawnFood();
+                    spawnFoodPokeball();
                     lastRenderTime = performance.now();
                 }
             }, 3500); 
@@ -983,7 +993,6 @@
             audioRunaway.play().catch(e => console.log(e));
 
             if (activeQuizMode === "COOP") {
-                // Co-op Fail: No penalization to lengths, element recycled
                 feedbackBanner.textContent = "Incorrect! The Pokémon slipped away from both players!";
                 feedbackBanner.className = "fail-text";
                 availablePokemonDeck.push(currentSelectedPokemon);
@@ -997,7 +1006,7 @@
                     isPaused = false;
                     isProcessingAnswer = false;
                     syncTrackState();
-                    spawnFood();
+                    spawnFoodPokeball();
                     lastRenderTime = performance.now();
                 }, 3000);
 
@@ -1031,7 +1040,7 @@
                     isPaused = false;
                     isProcessingAnswer = false;
                     syncTrackState();
-                    spawnFood();
+                    spawnFoodPokeball();
                     lastRenderTime = performance.now();
                 }, 3000);
             }
@@ -1109,30 +1118,36 @@
             return;
         }
 
-        // Process Player 1 Actions
+        // --- Player 1 Actions ---
         snake1.unshift(head1);
-        if (activeFood && head1.x === activeFood.pos.x && head1.y === activeFood.pos.y) {
-            if (activeFood.name === "Pokeball") {
-                pokeballsEatenCounter++;
-                triggerMathPopup(1);
-            } else {
-                handleBonusCollection(1, activeFood.name);
-            }
-            snake1.pop(); 
+        // Collision checking for Pokéball
+        if (activeFoodPokeball && head1.x === activeFoodPokeball.pos.x && head1.y === activeFoodPokeball.pos.y) {
+            pokeballsEatenCounter++;
+            checkAndSpawnSpecialItem(); 
+            triggerMathPopup(1);
+            snake1.pop();
+        } 
+        // Collision checking for independent Special Item
+        else if (activeSpecialItem && head1.x === activeSpecialItem.pos.x && head1.y === activeSpecialItem.pos.y) {
+            handleBonusCollection(1, activeSpecialItem.name);
+            if (grow1 > 0) grow1--; else snake1.pop();
         } else {
             if (grow1 > 0) grow1--; else snake1.pop();
         }
 
-        // Process Player 2 Actions
+        // --- Player 2 Actions ---
         snake2.unshift(head2);
-        if (activeFood && head2.x === activeFood.pos.x && head2.y === activeFood.pos.y) {
-            if (activeFood.name === "Pokeball") {
-                pokeballsEatenCounter++;
-                triggerMathPopup(2);
-            } else {
-                handleBonusCollection(2, activeFood.name);
-            }
-            snake2.pop(); 
+        // Collision checking for Pokéball
+        if (activeFoodPokeball && head2.x === activeFoodPokeball.pos.x && head2.y === activeFoodPokeball.pos.y) {
+            pokeballsEatenCounter++;
+            checkAndSpawnSpecialItem(); 
+            triggerMathPopup(2);
+            snake2.pop();
+        } 
+        // Collision checking for independent Special Item
+        else if (activeSpecialItem && head2.x === activeSpecialItem.pos.x && head2.y === activeSpecialItem.pos.y) {
+            handleBonusCollection(2, activeSpecialItem.name);
+            if (grow2 > 0) grow2--; else snake2.pop();
         } else {
             if (grow2 > 0) grow2--; else snake2.pop();
         }
@@ -1172,17 +1187,18 @@
 
     function drawWormItem(x, y, radius, time) {
         ctx.save(); ctx.translate(x, y);
-        ctx.fillStyle = "#ff8a80"; ctx.strokeStyle = "#c62828"; ctx.lineWidth = 2;
-        ctx.shadowBlur = 10; ctx.shadowColor = "#ff8a80";
+        // Changed to neon magenta pink and black accents for crystal clear contrast
+        ctx.fillStyle = "#ff007f"; ctx.strokeStyle = "#000000"; ctx.lineWidth = 2;
+        ctx.shadowBlur = 14; ctx.shadowColor = "#ff007f";
         ctx.beginPath();
-        // Render a cute segment worm shape using sine calculations
         for(let i=0; i<6; i++) {
-            let offset = Math.sin(time*0.2 + i)*3;
-            ctx.arc((i-2.5)*4, offset, radius*0.35, 0, Math.PI*2);
+            let offset = Math.sin(time*0.25 + i)*3.5;
+            ctx.arc((i-2.5)*4, offset, radius*0.4, 0, Math.PI*2);
         }
-        ctx.fill();
-        // Eyes
-        ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(8, -1, 1.5, 0, Math.PI*2); ctx.fill();
+        ctx.fill(); ctx.stroke();
+        // Visible Eyes
+        ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(8, -1, 2, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = "#000000"; ctx.beginPath(); ctx.arc(8, -1, 1, 0, Math.PI*2); ctx.fill();
         ctx.restore();
     }
 
@@ -1194,23 +1210,6 @@
             const tx = x + (seed - Math.floor(seed)) * width;
             const ty = y + ((seed * 10) - Math.floor(seed * 10)) * height;
             ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(tx - 2, ty + 6); ctx.lineTo(tx + 2, ty + 6); ctx.fill();
-        }
-    }
-
-    function drawFoodIcon(food, time) {
-        if (!food) return;
-        const x = food.pos.x + GRID_SIZE/2;
-        const y = food.pos.y + GRID_SIZE/2;
-        const radius = GRID_SIZE/2 * (1 + Math.sin(time * 0.15) * 0.08); 
-        
-        if (food.name === "Pokeball") {
-            ctx.save(); ctx.shadowBlur = 10; ctx.shadowColor = "#ff0000";
-            drawPokeball(x, y, radius);
-            ctx.restore();
-        } else if (food.name === "star") {
-            drawStarItem(x, y, GRID_SIZE * 0.6, time);
-        } else if (food.name === "worm") {
-            drawWormItem(x, y, GRID_SIZE * 0.5, time);
         }
     }
 
@@ -1247,22 +1246,25 @@
         ctx.fillStyle = "#4caf50"; ctx.fillRect(0, 0, canvas.width / 2, HUD_HEIGHT);
         ctx.fillStyle = "#f44336"; ctx.fillRect(canvas.width / 2, 0, canvas.width / 2, HUD_HEIGHT);
         
-        // P1 Status Indicator
-        ctx.textBaseline = "middle"; ctx.fillStyle = "#fff"; ctx.strokeStyle = "#1b5e20"; ctx.lineWidth = 4;
-        ctx.font = "bold 22px 'Comic Sans MS', cursive"; ctx.textAlign = "left";
+        ctx.textBaseline = "middle"; ctx.fillStyle = "#fff"; ctx.strokeStyle = "rgba(0,0,0,0.4)"; ctx.lineWidth = 4;
+        // Cleaned font to bold sans-serif
+        ctx.font = "bold 22px Arial, Helvetica, sans-serif"; 
+
+        // P1 Status Panel
+        ctx.textAlign = "left";
         let p1Tag = `🟢 P1 Score: ${p1Points}`;
         if (p1StarTime > 0) p1Tag += ` 🌟(${p1StarTime}s)`;
         if (p1WormTime > 0) p1Tag += ` 🪱🤢(${p1WormTime}s)`;
         ctx.strokeText(p1Tag, 15, HUD_HEIGHT / 2); ctx.fillText(p1Tag, 15, HUD_HEIGHT / 2);
 
-        // P2 Status Indicator
-        ctx.textAlign = "right"; ctx.strokeStyle = "#7f0000";
+        // P2 Status Panel
+        ctx.textAlign = "right";
         let p2Tag = `🔴 P2 Score: ${p2Points}`;
         if (p2StarTime > 0) p2Tag += ` 🌟(${p2StarTime}s)`;
         if (p2WormTime > 0) p2Tag += ` 🪱🤢(${p2WormTime}s)`;
         ctx.strokeText(p2Tag, canvas.width - 15, HUD_HEIGHT / 2); ctx.fillText(p2Tag, canvas.width - 15, HUD_HEIGHT / 2);
 
-        // Timer Panel Display
+        // Central Arena Clock Display
         ctx.save(); ctx.fillStyle = "#222"; ctx.strokeStyle = "#ffde00"; ctx.lineWidth = 3;
         drawRoundRect(ctx, canvas.width / 2 - 70, HUD_HEIGHT / 2 - 25, 140, 50, 10, true); ctx.stroke();
         ctx.fillStyle = "#ffde00"; ctx.font = "bold 24px monospace"; ctx.textAlign = "center";
@@ -1270,7 +1272,27 @@
 
         ctx.strokeStyle = "#000"; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(0, HUD_HEIGHT); ctx.lineTo(canvas.width, HUD_HEIGHT); ctx.stroke();
 
-        if (activeFood && !isGameOver) drawFoodIcon(activeFood, gameFrameCount);
+        // Render targets safely
+        if (!isGameOver) {
+            if (activeFoodPokeball) {
+                const px = activeFoodPokeball.pos.x + GRID_SIZE/2;
+                const py = activeFoodPokeball.pos.y + GRID_SIZE/2;
+                const pr = GRID_SIZE/2 * (1 + Math.sin(gameFrameCount * 0.15) * 0.08);
+                ctx.save(); ctx.shadowBlur = 10; ctx.shadowColor = "#ff0000";
+                drawPokeball(px, py, pr);
+                ctx.restore();
+            }
+            if (activeSpecialItem) {
+                const sx = activeSpecialItem.pos.x + GRID_SIZE/2;
+                const sy = activeSpecialItem.pos.y + GRID_SIZE/2;
+                if (activeSpecialItem.name === "star") {
+                    drawStarItem(sx, sy, GRID_SIZE * 0.6, gameFrameCount);
+                } else if (activeSpecialItem.name === "worm") {
+                    drawWormItem(sx, sy, GRID_SIZE * 0.5, gameFrameCount);
+                }
+            }
+        }
+        
         drawSnakes();
         if (isGameOver) updateAndDrawConfetti();
     }
