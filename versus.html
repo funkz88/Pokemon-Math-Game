@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Catch them all! - 2 Player Co-op & Versus Edition</title>
+    <title>Catch them all! - 2 Player Bonus Power-Up Edition</title>
     <style>
         body {
             font-family: 'Comic Sans MS', 'Chalkboard SE', cursive, sans-serif;
@@ -19,7 +19,6 @@
             box-sizing: border-box;
         }
 
-        /* Expands console grid to accommodate controls on both the left and right flanks */
         #console-wrapper {
             display: grid;
             grid-template-columns: 240px 1fr 240px; 
@@ -174,7 +173,6 @@
             box-shadow: 0 6px 0px #b3a125;
         }
 
-        /* Help button styling */
         #help-coop-btn {
             background-color: #00bcd4;
             color: white;
@@ -328,7 +326,6 @@
             border: 4px solid #fff;
         }
 
-        /* Specific thematic branding borders for player ports */
         #controls-p1 { border-color: #4caf50; }
         #controls-p2 { border-color: #f44336; }
 
@@ -506,12 +503,10 @@
     function unlockAudioStream() {
         if (userHasInteracted) return;
         userHasInteracted = true;
-        
         const contextAudioTracks = [audioExplore, audioBattle, audioCatch, audioRunaway];
         contextAudioTracks.forEach(track => {
             track.play().then(() => { track.pause(); track.currentTime = 0; }).catch(err => {});
         });
-
         setTimeout(() => { syncTrackState(); }, 100);
     }
 
@@ -563,23 +558,23 @@
         { id: "250", name: "Ho-Oh", tier: "legendary" }    
     ];
 
-    // State structural logic tracking both snakes independently
-    let snake1, dir1, nextDir1;
-    let snake2, dir2, nextDir2;
-    let speed1, speed2;
+    let snake1, dir1, nextDir1, baseSpeed1;
+    let snake2, dir2, nextDir2, baseSpeed2;
     let grow1 = 0, grow2 = 0;
     
-    // Core Scoring Records
-    let p1Points = 0;
-    let p2Points = 0;
-    let p1Caught = [];
-    let p2Caught = [];
+    let p1Points = 0, p2Points = 0;
+    let p1Caught = [], p2Caught = [];
 
-    // Quiz and Mode State Machine variables
+    // Active power-up remaining clock cycles tracking (in match-seconds)
+    let p1StarTime = 0, p1WormTime = 0;
+    let p2StarTime = 0, p2WormTime = 0;
+
+    let pokeballsEatenCounter = 0;
+    let nextBonusTargetInterval = 2; 
+
     let questionActiveSourcePlayer = 1; 
     let activeQuizMode = "SOLO"; 
     
-    // Global clock parameters (15 Mins)
     const MATCH_TOTAL_SECONDS = 15 * 60; 
     let matchTimeRemaining = MATCH_TOTAL_SECONDS;
     let systemClockIntervalId = null;
@@ -604,6 +599,13 @@
     function runMatchClockStep() {
         if (!isPaused && !isGameOver) {
             matchTimeRemaining--;
+            
+            // Count down active status flags tracking independent power-ups safely
+            if (p1StarTime > 0) p1StarTime--;
+            if (p1WormTime > 0) p1WormTime--;
+            if (p2StarTime > 0) p2StarTime--;
+            if (p2WormTime > 0) p2WormTime--;
+
             if (matchTimeRemaining <= 0) {
                 matchTimeRemaining = 0;
                 triggerGameOver();
@@ -616,19 +618,18 @@
         mathPopup.classList.remove("show");
         mathPopup.classList.remove("legendary-popup-active");
 
-        // Player 1 initialization (Green Forest Variant)
-        snake1 = [
-            {x: 160, y: 200}, {x: 140, y: 200}, {x: 120, y: 200}
-        ];
-        dir1 = "RIGHT"; nextDir1 = "RIGHT"; speed1 = 2.5; grow1 = 0;
+        snake1 = [{x: 160, y: 200}, {x: 140, y: 200}, {x: 120, y: 200}];
+        dir1 = "RIGHT"; nextDir1 = "RIGHT"; baseSpeed1 = 2.5; grow1 = 0;
         p1Points = 0; p1Caught = [];
+        p1StarTime = 0; p1WormTime = 0;
 
-        // Player 2 initialization (Red Dragon Variant)
-        snake2 = [
-            {x: 640, y: 440}, {x: 660, y: 440}, {x: 680, y: 440}
-        ];
-        dir2 = "LEFT"; nextDir2 = "LEFT"; speed2 = 2.5; grow2 = 0;
+        snake2 = [{x: 640, y: 440}, {x: 660, y: 440}, {x: 680, y: 440}];
+        dir2 = "LEFT"; nextDir2 = "LEFT"; baseSpeed2 = 2.5; grow2 = 0;
         p2Points = 0; p2Caught = [];
+        p2StarTime = 0; p2WormTime = 0;
+
+        pokeballsEatenCounter = 0;
+        determineNextBonusInterval();
 
         matchTimeRemaining = MATCH_TOTAL_SECONDS;
         if(systemClockIntervalId) clearInterval(systemClockIntervalId);
@@ -652,39 +653,33 @@
         }
     }
 
+    function determineNextBonusInterval() {
+        nextBonusTargetInterval = Math.floor(Math.random() * 3) + 1; 
+    }
+
     function generateQuestion(tier) {
         let num1, num2, ans, text;
         if (tier === "legendary") {
             const randType = Math.random();
             if (randType < 0.5) {
-                num1 = Math.floor(Math.random() * 9) + 1; 
-                num2 = Math.floor(Math.random() * 9) + 1; 
-                ans = num1 * num2;
-                text = `${num1} × ${num2}`;
+                num1 = Math.floor(Math.random() * 9) + 1; num2 = Math.floor(Math.random() * 9) + 1;
+                ans = num1 * num2; text = `${num1} × ${num2}`;
             } else {
                 if (Math.random() > 0.5) {
-                    num1 = Math.floor(Math.random() * 240) + 100; 
-                    num2 = Math.floor(Math.random() * 150) + 100; 
-                    ans = num1 + num2;
-                    text = `${num1} + ${num2}`;
+                    num1 = Math.floor(Math.random() * 240) + 100; num2 = Math.floor(Math.random() * 150) + 100;
+                    ans = num1 + num2; text = `${num1} + ${num2}`;
                 } else {
-                    num1 = Math.floor(Math.random() * 300) + 199; 
-                    num2 = Math.floor(Math.random() * (num1 - 100)) + 100; 
-                    ans = num1 - num2;
-                    text = `${num1} - ${num2}`;
+                    num1 = Math.floor(Math.random() * 300) + 199; num2 = Math.floor(Math.random() * (num1 - 100)) + 100;
+                    ans = num1 - num2; text = `${num1} - ${num2}`;
                 }
             }
         } else {
             if (Math.random() > 0.5) {
-                num1 = Math.floor(Math.random() * 90) + 10; 
-                num2 = Math.floor(Math.random() * 89) + 10; 
-                ans = num1 + num2;
-                text = `${num1} + ${num2}`;
+                num1 = Math.floor(Math.random() * 90) + 10; num2 = Math.floor(Math.random() * 89) + 10;
+                ans = num1 + num2; text = `${num1} + ${num2}`;
             } else {
-                num1 = Math.floor(Math.random() * 90) + 10; 
-                num2 = Math.floor(Math.random() * (num1 - 1)) + 1; 
-                ans = num1 - num2;
-                text = `${num1} - ${num2}`;
+                num1 = Math.floor(Math.random() * 90) + 10; num2 = Math.floor(Math.random() * (num1 - 1)) + 1;
+                ans = num1 - num2; text = `${num1} - ${num2}`;
             }
         }
         return { text: text, answer: ans };
@@ -716,10 +711,22 @@
     }
 
     function spawnFood() {
-        activeFood = {
-            pos: getRandomGridPos(),
-            name: "Pokeball"
-        };
+        // Evaluate spawning mechanics to inject special items periodically
+        if (pokeballsEatenCounter >= nextBonusTargetInterval) {
+            pokeballsEatenCounter = 0; 
+            determineNextBonusInterval();
+            
+            const randomType = Math.random() < 0.5 ? "star" : "worm";
+            activeFood = {
+                pos: getRandomGridPos(),
+                name: randomType
+            };
+        } else {
+            activeFood = {
+                pos: getRandomGridPos(),
+                name: "Pokeball"
+            };
+        }
     }
 
     function triggerMathPopup(triggeringPlayerId) {
@@ -892,6 +899,22 @@
         });
     }
 
+    function handleBonusCollection(playerNum, bonusType) {
+        // Star gives a 1.5x speed boost to yourself for 30s
+        // Worm slashes opponent speed in half for 15s
+        if (bonusType === "star") {
+            if (playerNum === 1) p1StarTime = 30; else p2StarTime = 30;
+        } else if (bonusType === "worm") {
+            if (playerNum === 1) p2WormTime = 15; else p1WormTime = 15;
+        }
+        
+        // Trigger subtle positive audio reward for capturing items
+        audioCatch.currentTime = 0;
+        audioCatch.play().catch(e => {});
+
+        spawnFood();
+    }
+
     mathAnswerInput.addEventListener("keydown", function(e) {
         if (e.key === "Enter") processMathAnswer();
     });
@@ -909,24 +932,21 @@
             audioCatch.currentTime = 0; 
             audioCatch.play().catch(e => console.log(e));
 
-            // Award points based on context mode
             if (activeQuizMode === "COOP") {
                 const sharedSlice = baseRewardPoints / 2;
                 p1Points += sharedSlice;
                 p2Points += sharedSlice;
-                // Add reference clones to both bags for presentation displays
                 p1Caught.push(currentSelectedPokemon);
                 p2Caught.push({...currentSelectedPokemon, name: currentSelectedPokemon.name + " 🤝"});
             } else {
-                // Solo Mode or Steal Mode success
                 if (questionActiveSourcePlayer === 1) {
                     p1Points += baseRewardPoints;
                     p1Caught.push(currentSelectedPokemon);
-                    grow1 += 1; speed1 += 0.2;
+                    grow1 += 1; baseSpeed1 += 0.2;
                 } else {
                     p2Points += baseRewardPoints;
                     p2Caught.push(currentSelectedPokemon);
-                    grow2 += 1; speed2 += 0.2;
+                    grow2 += 1; baseSpeed2 += 0.2;
                 }
             }
             
@@ -958,13 +978,12 @@
                 }
             }, 3500); 
         } else {
-            // Wrong answer branch
             activeTrack = 'sfx_playing';
             audioRunaway.currentTime = 0;
             audioRunaway.play().catch(e => console.log(e));
 
             if (activeQuizMode === "COOP") {
-                // Co-op Fail: No one gets points, item goes back to deck
+                // Co-op Fail: No penalization to lengths, element recycled
                 feedbackBanner.textContent = "Incorrect! The Pokémon slipped away from both players!";
                 feedbackBanner.className = "fail-text";
                 availablePokemonDeck.push(currentSelectedPokemon);
@@ -983,13 +1002,12 @@
                 }, 3000);
 
             } else if (activeQuizMode === "SOLO") {
-                // Solo Fail: Shift question context window to the other player for a steal attempt
                 activeQuizMode = "STEAL";
-                isProcessingAnswer = false; // allow re-entry
-                helpCoopBtn.style.display = "none"; // hide help on steal
+                isProcessingAnswer = false; 
+                helpCoopBtn.style.display = "none"; 
 
                 const targetStealerId = (questionActiveSourcePlayer === 1) ? 2 : 1;
-                questionActiveSourcePlayer = targetStealerId; // Swap active responder reference
+                questionActiveSourcePlayer = targetStealerId; 
 
                 const opponentLabel = targetStealerId === 1 ? "Player 1 (Green)" : "Player 2 (Red)";
                 feedbackBanner.textContent = `Wrong! ${opponentLabel}, your chance to STEAL!`;
@@ -1000,7 +1018,6 @@
                 setTimeout(() => mathAnswerInput.focus(), 50);
 
             } else if (activeQuizMode === "STEAL") {
-                // Steal Fail: No points given, goes back to deck
                 feedbackBanner.textContent = `Steal failed! ${currentSelectedPokemon.name} escaped completely!`;
                 feedbackBanner.className = "fail-text";
                 availablePokemonDeck.push(currentSelectedPokemon);
@@ -1021,6 +1038,20 @@
         }
     }
 
+    function calculateCurrentSpeedP1() {
+        let outSpeed = baseSpeed1;
+        if (p1StarTime > 0) outSpeed *= 1.5;
+        if (p1WormTime > 0) outSpeed *= 0.5;
+        return outSpeed;
+    }
+
+    function calculateCurrentSpeedP2() {
+        let outSpeed = baseSpeed2;
+        if (p2StarTime > 0) outSpeed *= 1.5;
+        if (p2WormTime > 0) outSpeed *= 0.5;
+        return outSpeed;
+    }
+
     function mainGameLoop(currentTime) {
         animationFrameId = window.requestAnimationFrame(mainGameLoop);
         if (isPaused) {
@@ -1028,10 +1059,9 @@
             return;
         }
         
-        // Execute steps at independent variable frame rates per player speed scalar
         const elapsed = (currentTime - lastRenderTime) / 1000;
-        const effectiveBaseSpeed = Math.max(speed1, speed2);
-        if (elapsed < 1 / effectiveBaseSpeed) return;
+        const highestActiveSpeed = Math.max(calculateCurrentSpeedP1(), calculateCurrentSpeedP2());
+        if (elapsed < 1 / highestActiveSpeed) return;
         
         lastRenderTime = currentTime;
         update();
@@ -1047,7 +1077,6 @@
     function update() {
         gameFrameCount++;
         
-        // Update Snake 1 Velocity
         dir1 = nextDir1;
         const head1 = {x: snake1[0].x, y: snake1[0].y};
         if (dir1 === "UP") head1.y -= GRID_SIZE;
@@ -1055,7 +1084,6 @@
         else if (dir1 === "LEFT") head1.x -= GRID_SIZE;
         else if (dir1 === "RIGHT") head1.x += GRID_SIZE;
 
-        // Update Snake 2 Velocity
         dir2 = nextDir2;
         const head2 = {x: snake2[0].x, y: snake2[0].y};
         if (dir2 === "UP") head2.y -= GRID_SIZE;
@@ -1063,19 +1091,16 @@
         else if (dir2 === "LEFT") head2.x -= GRID_SIZE;
         else if (dir2 === "RIGHT") head2.x += GRID_SIZE;
 
-        // Wrap boundaries Player 1
         if (head1.x >= canvas.width) head1.x = 0;
         else if (head1.x < 0) head1.x = canvas.width - GRID_SIZE;
         if (head1.y >= canvas.height) head1.y = HUD_HEIGHT;
         else if (head1.y < HUD_HEIGHT) head1.y = canvas.height - GRID_SIZE;
 
-        // Wrap boundaries Player 2
         if (head2.x >= canvas.width) head2.x = 0;
         else if (head2.x < 0) head2.x = canvas.width - GRID_SIZE;
         if (head2.y >= canvas.height) head2.y = HUD_HEIGHT;
         else if (head2.y < HUD_HEIGHT) head2.y = canvas.height - GRID_SIZE;
 
-        // Check internal self-crashing conditions ONLY
         const s1SelfCrash = snake1.some((seg, idx) => idx !== 0 && seg.x === head1.x && seg.y === head1.y);
         const s2SelfCrash = snake2.some((seg, idx) => idx !== 0 && seg.x === head2.x && seg.y === head2.y);
         
@@ -1084,19 +1109,29 @@
             return;
         }
 
-        // Advance Snake 1 Structural Nodes
+        // Process Player 1 Actions
         snake1.unshift(head1);
         if (activeFood && head1.x === activeFood.pos.x && head1.y === activeFood.pos.y) {
-            triggerMathPopup(1);
+            if (activeFood.name === "Pokeball") {
+                pokeballsEatenCounter++;
+                triggerMathPopup(1);
+            } else {
+                handleBonusCollection(1, activeFood.name);
+            }
             snake1.pop(); 
         } else {
             if (grow1 > 0) grow1--; else snake1.pop();
         }
 
-        // Advance Snake 2 Structural Nodes
+        // Process Player 2 Actions
         snake2.unshift(head2);
         if (activeFood && head2.x === activeFood.pos.x && head2.y === activeFood.pos.y) {
-            triggerMathPopup(2);
+            if (activeFood.name === "Pokeball") {
+                pokeballsEatenCounter++;
+                triggerMathPopup(2);
+            } else {
+                handleBonusCollection(2, activeFood.name);
+            }
             snake2.pop(); 
         } else {
             if (grow2 > 0) grow2--; else snake2.pop();
@@ -1123,6 +1158,34 @@
         ctx.restore();
     }
 
+    function drawStarItem(x, y, radius, time) {
+        ctx.save(); ctx.translate(x, y); ctx.rotate(time * 0.05);
+        ctx.fillStyle = "#ffeb3b"; ctx.strokeStyle = "#f57f17"; ctx.lineWidth = 2;
+        ctx.shadowBlur = 15; ctx.shadowColor = "#fff59d";
+        ctx.beginPath();
+        for (let i = 0; i < 5; i++) {
+            ctx.lineTo(Math.cos((18 + i * 72) * Math.PI / 180) * radius, -Math.sin((18 + i * 72) * Math.PI / 180) * radius);
+            ctx.lineTo(Math.cos((54 + i * 72) * Math.PI / 180) * (radius/2), -Math.sin((54 + i * 72) * Math.PI / 180) * (radius/2));
+        }
+        ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
+    }
+
+    function drawWormItem(x, y, radius, time) {
+        ctx.save(); ctx.translate(x, y);
+        ctx.fillStyle = "#ff8a80"; ctx.strokeStyle = "#c62828"; ctx.lineWidth = 2;
+        ctx.shadowBlur = 10; ctx.shadowColor = "#ff8a80";
+        ctx.beginPath();
+        // Render a cute segment worm shape using sine calculations
+        for(let i=0; i<6; i++) {
+            let offset = Math.sin(time*0.2 + i)*3;
+            ctx.arc((i-2.5)*4, offset, radius*0.35, 0, Math.PI*2);
+        }
+        ctx.fill();
+        // Eyes
+        ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(8, -1, 1.5, 0, Math.PI*2); ctx.fill();
+        ctx.restore();
+    }
+
     function drawGrass(x, y, width, height) {
         ctx.fillStyle = "#81c784"; ctx.fillRect(x, y, width, height);
         ctx.fillStyle = "#4caf50";
@@ -1139,13 +1202,19 @@
         const x = food.pos.x + GRID_SIZE/2;
         const y = food.pos.y + GRID_SIZE/2;
         const radius = GRID_SIZE/2 * (1 + Math.sin(time * 0.15) * 0.08); 
-        ctx.save(); ctx.shadowBlur = 10; ctx.shadowColor = "#ff0000";
-        drawPokeball(x, y, radius);
-        ctx.restore();
+        
+        if (food.name === "Pokeball") {
+            ctx.save(); ctx.shadowBlur = 10; ctx.shadowColor = "#ff0000";
+            drawPokeball(x, y, radius);
+            ctx.restore();
+        } else if (food.name === "star") {
+            drawStarItem(x, y, GRID_SIZE * 0.6, time);
+        } else if (food.name === "worm") {
+            drawWormItem(x, y, GRID_SIZE * 0.5, time);
+        }
     }
 
     function drawSnakes() {
-        // Render Player 1: Green Forest Variant
         snake1.forEach((segment, index) => {
             const x = segment.x + GRID_SIZE/2; const y = segment.y + GRID_SIZE/2;
             if (index === 0) {
@@ -1158,7 +1227,6 @@
             }
         });
 
-        // Render Player 2: Red Dragon Variant
         snake2.forEach((segment, index) => {
             const x = segment.x + GRID_SIZE/2; const y = segment.y + GRID_SIZE/2;
             if (index === 0) {
@@ -1176,33 +1244,29 @@
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         drawGrass(0, HUD_HEIGHT, canvas.width, canvas.height - HUD_HEIGHT);
         
-        // Render Split Colored Score Panel Bar 
         ctx.fillStyle = "#4caf50"; ctx.fillRect(0, 0, canvas.width / 2, HUD_HEIGHT);
         ctx.fillStyle = "#f44336"; ctx.fillRect(canvas.width / 2, 0, canvas.width / 2, HUD_HEIGHT);
         
-        // P1 Score Text
+        // P1 Status Indicator
         ctx.textBaseline = "middle"; ctx.fillStyle = "#fff"; ctx.strokeStyle = "#1b5e20"; ctx.lineWidth = 4;
-        ctx.font = "bold 24px 'Comic Sans MS', cursive"; ctx.textAlign = "left";
-        ctx.strokeText(`🟢 P1 Score: ${p1Points}`, 20, HUD_HEIGHT / 2);
-        ctx.fillText(`🟢 P1 Score: ${p1Points}`, 20, HUD_HEIGHT / 2);
+        ctx.font = "bold 22px 'Comic Sans MS', cursive"; ctx.textAlign = "left";
+        let p1Tag = `🟢 P1 Score: ${p1Points}`;
+        if (p1StarTime > 0) p1Tag += ` 🌟(${p1StarTime}s)`;
+        if (p1WormTime > 0) p1Tag += ` 🪱🤢(${p1WormTime}s)`;
+        ctx.strokeText(p1Tag, 15, HUD_HEIGHT / 2); ctx.fillText(p1Tag, 15, HUD_HEIGHT / 2);
 
-        // P2 Score Text
+        // P2 Status Indicator
         ctx.textAlign = "right"; ctx.strokeStyle = "#7f0000";
-        ctx.strokeText(`🔴 P2 Score: ${p2Points}`, canvas.width - 20, HUD_HEIGHT / 2);
-        ctx.fillText(`🔴 P2 Score: ${p2Points}`, canvas.width - 20, HUD_HEIGHT / 2);
+        let p2Tag = `🔴 P2 Score: ${p2Points}`;
+        if (p2StarTime > 0) p2Tag += ` 🌟(${p2StarTime}s)`;
+        if (p2WormTime > 0) p2Tag += ` 🪱🤢(${p2WormTime}s)`;
+        ctx.strokeText(p2Tag, canvas.width - 15, HUD_HEIGHT / 2); ctx.fillText(p2Tag, canvas.width - 15, HUD_HEIGHT / 2);
 
-        // Center Global Digital Timer Plate Display
-        ctx.save();
-        ctx.fillStyle = "#222";
-        ctx.strokeStyle = "#ffde00";
-        ctx.lineWidth = 3;
-        drawRoundRect(ctx, canvas.width / 2 - 70, HUD_HEIGHT / 2 - 25, 140, 50, 10, true);
-        ctx.stroke();
-        ctx.fillStyle = "#ffde00";
-        ctx.font = "bold 24px monospace";
-        ctx.textAlign = "center";
-        ctx.fillText(formatTime(matchTimeRemaining), canvas.width / 2, HUD_HEIGHT / 2);
-        ctx.restore();
+        // Timer Panel Display
+        ctx.save(); ctx.fillStyle = "#222"; ctx.strokeStyle = "#ffde00"; ctx.lineWidth = 3;
+        drawRoundRect(ctx, canvas.width / 2 - 70, HUD_HEIGHT / 2 - 25, 140, 50, 10, true); ctx.stroke();
+        ctx.fillStyle = "#ffde00"; ctx.font = "bold 24px monospace"; ctx.textAlign = "center";
+        ctx.fillText(formatTime(matchTimeRemaining), canvas.width / 2, HUD_HEIGHT / 2); ctx.restore();
 
         ctx.strokeStyle = "#000"; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(0, HUD_HEIGHT); ctx.lineTo(canvas.width, HUD_HEIGHT); ctx.stroke();
 
@@ -1227,13 +1291,11 @@
         if (targetDir === "RIGHT" && dir2 !== "LEFT") nextDir2 = "RIGHT";
     }
 
-    // Touch events for Player 1 (Green)
     document.getElementById("p1-up").addEventListener("touchstart", (e) => { e.preventDefault(); handleInputP1("UP"); });
     document.getElementById("p1-down").addEventListener("touchstart", (e) => { e.preventDefault(); handleInputP1("DOWN"); });
     document.getElementById("p1-left").addEventListener("touchstart", (e) => { e.preventDefault(); handleInputP1("LEFT"); });
     document.getElementById("p1-right").addEventListener("touchstart", (e) => { e.preventDefault(); handleInputP1("RIGHT"); });
 
-    // Touch events for Player 2 (Red)
     document.getElementById("p2-up").addEventListener("touchstart", (e) => { e.preventDefault(); handleInputP2("UP"); });
     document.getElementById("p2-down").addEventListener("touchstart", (e) => { e.preventDefault(); handleInputP2("DOWN"); });
     document.getElementById("p2-left").addEventListener("touchstart", (e) => { e.preventDefault(); handleInputP2("LEFT"); });
