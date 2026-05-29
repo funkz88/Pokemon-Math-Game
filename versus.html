@@ -907,21 +907,9 @@
     function handleBonusCollection(playerNum, bonusType) {
         if (bonusType === "star") {
             if (playerNum === 1) p1StarTime = 30; else p2StarTime = 30;
-            // Play an enthusiastic catch burst sound variant for Star consumption
-            audioCatch.currentTime = 0;
-            audioCatch.playbackRate = 1.4; 
-            audioCatch.play().catch(e => {});
         } else if (bonusType === "worm") {
             if (playerNum === 1) p2WormTime = 15; else p1WormTime = 15;
-            // Play a slightly modulated catch sound variant for Worm interaction
-            audioCatch.currentTime = 0;
-            audioCatch.playbackRate = 0.75; 
-            audioCatch.play().catch(e => {});
         }
-        
-        // Reset playback rate back to standard state
-        setTimeout(() => { audioCatch.playbackRate = 1.0; }, 1000);
-        
         activeSpecialItem = null; 
     }
 
@@ -1049,15 +1037,15 @@
 
     function calculateCurrentSpeedP1() {
         let outSpeed = baseSpeed1;
-        if (p1StarTime > 0) outSpeed *= 1.5;
-        if (p1WormTime > 0) outSpeed *= 0.5;
+        if (p1StarTime > 0) outSpeed *= 2.5;
+        if (p1WormTime > 0) outSpeed *= 0.25;
         return outSpeed;
     }
 
     function calculateCurrentSpeedP2() {
         let outSpeed = baseSpeed2;
-        if (p2StarTime > 0) outSpeed *= 1.5;
-        if (p2WormTime > 0) outSpeed *= 0.5;
+        if (p2StarTime > 0) outSpeed *= 2.5;
+        if (p2WormTime > 0) outSpeed *= 0.25;
         return outSpeed;
     }
 
@@ -1120,14 +1108,12 @@
 
         // --- Player 1 Actions ---
         snake1.unshift(head1);
-        // Collision checking for Pokéball
         if (activeFoodPokeball && head1.x === activeFoodPokeball.pos.x && head1.y === activeFoodPokeball.pos.y) {
             pokeballsEatenCounter++;
             checkAndSpawnSpecialItem(); 
             triggerMathPopup(1);
             snake1.pop();
         } 
-        // Collision checking for independent Special Item
         else if (activeSpecialItem && head1.x === activeSpecialItem.pos.x && head1.y === activeSpecialItem.pos.y) {
             handleBonusCollection(1, activeSpecialItem.name);
             if (grow1 > 0) grow1--; else snake1.pop();
@@ -1137,14 +1123,12 @@
 
         // --- Player 2 Actions ---
         snake2.unshift(head2);
-        // Collision checking for Pokéball
         if (activeFoodPokeball && head2.x === activeFoodPokeball.pos.x && head2.y === activeFoodPokeball.pos.y) {
             pokeballsEatenCounter++;
             checkAndSpawnSpecialItem(); 
             triggerMathPopup(2);
             snake2.pop();
         } 
-        // Collision checking for independent Special Item
         else if (activeSpecialItem && head2.x === activeSpecialItem.pos.x && head2.y === activeSpecialItem.pos.y) {
             handleBonusCollection(2, activeSpecialItem.name);
             if (grow2 > 0) grow2--; else snake2.pop();
@@ -1187,7 +1171,6 @@
 
     function drawWormItem(x, y, radius, time) {
         ctx.save(); ctx.translate(x, y);
-        // Changed to neon magenta pink and black accents for crystal clear contrast
         ctx.fillStyle = "#ff007f"; ctx.strokeStyle = "#000000"; ctx.lineWidth = 2;
         ctx.shadowBlur = 14; ctx.shadowColor = "#ff007f";
         ctx.beginPath();
@@ -1196,7 +1179,6 @@
             ctx.arc((i-2.5)*4, offset, radius*0.4, 0, Math.PI*2);
         }
         ctx.fill(); ctx.stroke();
-        // Visible Eyes
         ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(8, -1, 2, 0, Math.PI*2); ctx.fill();
         ctx.fillStyle = "#000000"; ctx.beginPath(); ctx.arc(8, -1, 1, 0, Math.PI*2); ctx.fill();
         ctx.restore();
@@ -1247,7 +1229,6 @@
         ctx.fillStyle = "#f44336"; ctx.fillRect(canvas.width / 2, 0, canvas.width / 2, HUD_HEIGHT);
         
         ctx.textBaseline = "middle"; ctx.fillStyle = "#fff"; ctx.strokeStyle = "rgba(0,0,0,0.4)"; ctx.lineWidth = 4;
-        // Cleaned font to bold sans-serif
         ctx.font = "bold 22px Arial, Helvetica, sans-serif"; 
 
         // P1 Status Panel
@@ -1272,7 +1253,6 @@
 
         ctx.strokeStyle = "#000"; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(0, HUD_HEIGHT); ctx.lineTo(canvas.width, HUD_HEIGHT); ctx.stroke();
 
-        // Render targets safely
         if (!isGameOver) {
             if (activeFoodPokeball) {
                 const px = activeFoodPokeball.pos.x + GRID_SIZE/2;
@@ -1322,6 +1302,20 @@
     document.getElementById("p2-down").addEventListener("touchstart", (e) => { e.preventDefault(); handleInputP2("DOWN"); });
     document.getElementById("p2-left").addEventListener("touchstart", (e) => { e.preventDefault(); handleInputP2("LEFT"); });
     document.getElementById("p2-right").addEventListener("touchstart", (e) => { e.preventDefault(); handleInputP2("RIGHT"); });
+
+    // Desktop Key mappings
+    window.addEventListener("keydown", (e) => {
+        const key = e.key.toUpperCase();
+        if (key === "W") handleInputP1("UP");
+        if (key === "S") handleInputP1("DOWN");
+        if (key === "A") handleInputP1("LEFT");
+        if (key === "D") handleInputP1("RIGHT");
+
+        if (e.key === "ArrowUp") handleInputP2("UP");
+        if (e.key === "ArrowDown") handleInputP2("DOWN");
+        if (e.key === "ArrowLeft") handleInputP2("LEFT");
+        if (e.key === "ArrowRight") handleInputP2("RIGHT");
+    });
 
     initGame();
 </script>
