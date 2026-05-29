@@ -568,6 +568,9 @@
     let p1StarTime = 0, p1WormTime = 0;
     let p2StarTime = 0, p2WormTime = 0;
 
+    let lastMoveTimeP1 = 0;
+    let lastMoveTimeP2 = 0;
+
     let pokeballsEatenCounter = 0;
     let nextBonusTargetInterval = 2; 
 
@@ -579,7 +582,6 @@
     let systemClockIntervalId = null;
 
     let currentQuestion, activeFoodPokeball, activeSpecialItem;
-    let lastRenderTime = 0;
     let isPaused = false;
     let isGameOver = false; 
     let isProcessingAnswer = false; 
@@ -647,7 +649,10 @@
         spawnFoodPokeball();
         activeSpecialItem = null; 
         
-        lastRenderTime = performance.now();
+        const now = performance.now();
+        lastMoveTimeP1 = now;
+        lastMoveTimeP2 = now;
+
         if (!animationFrameId) {
             animationFrameId = window.requestAnimationFrame(mainGameLoop);
         }
@@ -972,7 +977,9 @@
                 } else {
                     syncTrackState();
                     spawnFoodPokeball();
-                    lastRenderTime = performance.now();
+                    const now = performance.now();
+                    lastMoveTimeP1 = now;
+                    lastMoveTimeP2 = now;
                 }
             }, 3500); 
         } else {
@@ -995,7 +1002,9 @@
                     isProcessingAnswer = false;
                     syncTrackState();
                     spawnFoodPokeball();
-                    lastRenderTime = performance.now();
+                    const now = performance.now();
+                    lastMoveTimeP1 = now;
+                    lastMoveTimeP2 = now;
                 }, 3000);
 
             } else if (activeQuizMode === "SOLO") {
@@ -1029,7 +1038,9 @@
                     isProcessingAnswer = false;
                     syncTrackState();
                     spawnFoodPokeball();
-                    lastRenderTime = performance.now();
+                    const now = performance.now();
+                    lastMoveTimeP1 = now;
+                    lastMoveTimeP2 = now;
                 }, 3000);
             }
         }
@@ -1056,13 +1067,30 @@
             return;
         }
         
-        const elapsed = (currentTime - lastRenderTime) / 1000;
-        const highestActiveSpeed = Math.max(calculateCurrentSpeedP1(), calculateCurrentSpeedP2());
-        if (elapsed < 1 / highestActiveSpeed) return;
-        
-        lastRenderTime = currentTime;
-        update();
-        draw();
+        gameFrameCount++;
+
+        // Calculate independent delta delays for each player snake based on their true speed state
+        const delayP1 = 1000 / calculateCurrentSpeedP1();
+        const delayP2 = 1000 / calculateCurrentSpeedP2();
+
+        let updatedAny = false;
+
+        if (currentTime - lastMoveTimeP1 >= delayP1) {
+            updatePlayer1();
+            lastMoveTimeP1 = currentTime;
+            updatedAny = true;
+        }
+
+        if (currentTime - lastMoveTimeP2 >= delayP2) {
+            updatePlayer2();
+            lastMoveTimeP2 = currentTime;
+            updatedAny = true;
+        }
+
+        if (updatedAny) {
+            checkCollisions();
+            draw();
+        }
     }
 
     function formatTime(totalSeconds) {
@@ -1071,9 +1099,7 @@
         return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     }
 
-    function update() {
-        gameFrameCount++;
-        
+    function updatePlayer1() {
         dir1 = nextDir1;
         const head1 = {x: snake1[0].x, y: snake1[0].y};
         if (dir1 === "UP") head1.y -= GRID_SIZE;
@@ -1081,33 +1107,13 @@
         else if (dir1 === "LEFT") head1.x -= GRID_SIZE;
         else if (dir1 === "RIGHT") head1.x += GRID_SIZE;
 
-        dir2 = nextDir2;
-        const head2 = {x: snake2[0].x, y: snake2[0].y};
-        if (dir2 === "UP") head2.y -= GRID_SIZE;
-        else if (dir2 === "DOWN") head2.y += GRID_SIZE;
-        else if (dir2 === "LEFT") head2.x -= GRID_SIZE;
-        else if (dir2 === "RIGHT") head2.x += GRID_SIZE;
-
         if (head1.x >= canvas.width) head1.x = 0;
         else if (head1.x < 0) head1.x = canvas.width - GRID_SIZE;
         if (head1.y >= canvas.height) head1.y = HUD_HEIGHT;
         else if (head1.y < HUD_HEIGHT) head1.y = canvas.height - GRID_SIZE;
 
-        if (head2.x >= canvas.width) head2.x = 0;
-        else if (head2.x < 0) head2.x = canvas.width - GRID_SIZE;
-        if (head2.y >= canvas.height) head2.y = HUD_HEIGHT;
-        else if (head2.y < HUD_HEIGHT) head2.y = canvas.height - GRID_SIZE;
-
-        const s1SelfCrash = snake1.some((seg, idx) => idx !== 0 && seg.x === head1.x && seg.y === head1.y);
-        const s2SelfCrash = snake2.some((seg, idx) => idx !== 0 && seg.x === head2.x && seg.y === head2.y);
-        
-        if (s1SelfCrash || s2SelfCrash) {
-            triggerGameOver();
-            return;
-        }
-
-        // --- Player 1 Actions ---
         snake1.unshift(head1);
+
         if (activeFoodPokeball && head1.x === activeFoodPokeball.pos.x && head1.y === activeFoodPokeball.pos.y) {
             pokeballsEatenCounter++;
             checkAndSpawnSpecialItem(); 
@@ -1120,9 +1126,23 @@
         } else {
             if (grow1 > 0) grow1--; else snake1.pop();
         }
+    }
 
-        // --- Player 2 Actions ---
+    function updatePlayer2() {
+        dir2 = nextDir2;
+        const head2 = {x: snake2[0].x, y: snake2[0].y};
+        if (dir2 === "UP") head2.y -= GRID_SIZE;
+        else if (dir2 === "DOWN") head2.y += GRID_SIZE;
+        else if (dir2 === "LEFT") head2.x -= GRID_SIZE;
+        else if (dir2 === "RIGHT") head2.x += GRID_SIZE;
+
+        if (head2.x >= canvas.width) head2.x = 0;
+        else if (head2.x < 0) head2.x = canvas.width - GRID_SIZE;
+        if (head2.y >= canvas.height) head2.y = HUD_HEIGHT;
+        else if (head2.y < HUD_HEIGHT) head2.y = canvas.height - GRID_SIZE;
+
         snake2.unshift(head2);
+
         if (activeFoodPokeball && head2.x === activeFoodPokeball.pos.x && head2.y === activeFoodPokeball.pos.y) {
             pokeballsEatenCounter++;
             checkAndSpawnSpecialItem(); 
@@ -1134,6 +1154,18 @@
             if (grow2 > 0) grow2--; else snake2.pop();
         } else {
             if (grow2 > 0) grow2--; else snake2.pop();
+        }
+    }
+
+    function checkCollisions() {
+        const head1 = snake1[0];
+        const head2 = snake2[0];
+
+        const s1SelfCrash = snake1.some((seg, idx) => idx !== 0 && seg.x === head1.x && seg.y === head1.y);
+        const s2SelfCrash = snake2.some((seg, idx) => idx !== 0 && seg.x === head2.x && seg.y === head2.y);
+        
+        if (s1SelfCrash || s2SelfCrash) {
+            triggerGameOver();
         }
     }
 
