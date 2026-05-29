@@ -323,51 +323,57 @@
         }
 
         .drumroll-text-pulse {
-            font-size: 44px;
-            font-weight: 900;
-            color: #ffde00;
-            text-shadow: 0 0 20px #ffea00, 4px 4px 0px #3b4cca;
+            font-size: 38px;
+            font-weight: 800;
+            color: #ffffff;
+            text-shadow: 0 0 12px rgba(255,255,255,0.4);
             animation: textShake 0.15s infinite;
-            margin-bottom: 20px;
-            letter-spacing: 2px;
+            margin-bottom: 25px;
+            letter-spacing: 1px;
         }
 
         @keyframes textShake {
-            0% { transform: translate(2px, 1px) rotate(0deg); }
-            10% { transform: translate(-1px, -2px) rotate(-1deg); }
-            20% { transform: translate(-3px, 0px) rotate(1deg); }
-            30% { transform: translate(0px, 2px) rotate(0deg); }
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            20% { transform: translate(-2px, 0px) rotate(-1deg); }
             40% { transform: translate(1px, -1px) rotate(1deg); }
-            50% { transform: translate(-1px, 2px) rotate(-1deg); }
-            60% { transform: translate(-3px, 1px) rotate(0deg); }
-            70% { transform: translate(2px, 1px) rotate(-1deg); }
-            80% { transform: translate(-1px, -1px) rotate(1deg); }
-            90% { transform: translate(2px, 2px) rotate(0deg); }
-            100% { transform: translate(1px, -2px) rotate(-1deg); }
+            60% { transform: translate(-2px, 1px) rotate(0deg); }
+            80% { transform: translate(2px, 1px) rotate(-1deg); }
+            100% { transform: translate(1px, -2px) rotate(0deg); }
         }
 
+        /* UPDATED: Dynamic 3D screen pop-out animation container */
         .ceremony-winner-banner {
-            font-size: 38px;
-            font-weight: bold;
+            font-size: 48px;
+            font-weight: 900;
             text-align: center;
-            color: #ffffff;
-            text-shadow: 0 0 25px rgba(255,255,255,0.6);
-            transform: scale(0);
-            transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             margin-top: 15px;
-            padding: 15px 30px;
-            border-radius: 16px;
-            background: rgba(255, 255, 255, 0.1);
-            border: 3px dashed #ffde00;
+            padding: 20px 40px;
+            display: none; 
+            opacity: 0;
         }
 
         .ceremony-winner-banner.pop-reveal {
-            transform: scale(1);
+            display: block;
+            opacity: 1;
+            animation: dramaticPopOut 0.55s cubic-bezier(0.175, 0.885, 0.42, 1.45) forwards;
         }
 
-        /* NEW: Continue button design inside the drumroll overlay */
+        @keyframes dramaticPopOut {
+            0% {
+                transform: scale(0.1) rotate(-10deg);
+                filter: blur(10px);
+            }
+            70% {
+                transform: scale(1.25) rotate(3deg);
+                filter: blur(0px);
+            }
+            100% {
+                transform: scale(1.0) rotate(0deg);
+            }
+        }
+
         #ceremony-continue-btn {
-            margin-top: 30px;
+            margin-top: 35px;
             font-family: inherit;
             font-size: 20px;
             font-weight: bold;
@@ -378,7 +384,7 @@
             border-radius: 12px;
             cursor: pointer;
             box-shadow: 0 6px 0px #b3a125;
-            display: none; /* Injected dynamically */
+            display: none; 
             transition: transform 0.1s ease;
         }
 
@@ -387,9 +393,9 @@
             box-shadow: 0 3px 0px #b3a125;
         }
 
-        .winner-p1-color { color: #26ff26 !important; text-shadow: 0 0 20px #00ff00, 3px 3px 0px #000; }
-        .winner-p2-color { color: #ff3333 !important; text-shadow: 0 0 20px #ff0000, 3px 3px 0px #000; }
-        .winner-tie-color { color: #00ffff !important; text-shadow: 0 0 20px #00ffff, 3px 3px 0px #000; }
+        .winner-p1-color { color: #26ff26 !important; text-shadow: 0 0 30px rgba(0,255,0,0.8), 4px 4px 0px #000; }
+        .winner-p2-color { color: #ff3333 !important; text-shadow: 0 0 30px rgba(255,0,0,0.8), 4px 4px 0px #000; }
+        .winner-tie-color { color: #00ffff !important; text-shadow: 0 0 30px rgba(0,255,255,0.8), 4px 4px 0px #000; }
 
         .arcade-controls-flank {
             width: 100%;
@@ -505,7 +511,7 @@
         </div>
 
         <div id="drumroll-curtain" class="game-overlay">
-            <div id="drumroll-status" class="drumroll-text-pulse">🥁 DRUM ROLL PLEASE... 🥁</div>
+            <div id="drumroll-status" class="drumroll-text-pulse">the winner is .....</div>
             <div id="ceremony-winner-box" class="ceremony-winner-banner"></div>
             <button id="ceremony-continue-btn" onclick="goToScoreboardScreen()">Continue to Scoreboard ➔</button>
         </div>
@@ -924,59 +930,56 @@
         }
     }
 
-    /* UPDATED: Structured 6-Second Build with Interactive Continue Button Flow */
+    /* UPDATED: Shortened 4-Second Screen Build & Pop-Out Reveal Engine Mechanics */
     function triggerWinnerCeremonySequence() {
         isPaused = true;
         if(systemClockIntervalId) clearInterval(systemClockIntervalId);
         
-        // Silence ongoing explore or battle background soundtracks
         audioExplore.pause();
         audioBattle.pause();
 
-        // Trigger and start looping the external drum roll sound file
         activeTrack = 'ceremony';
         audioDrumroll.currentTime = 0;
-        audioDrumroll.play().catch(e => console.log("Audio play blocked:", e));
+        audioDrumroll.play().catch(e => console.log(e));
 
-        // Setup the curtain screen overlay view
-        drumrollStatus.textContent = "🥁 DRUM ROLL PLEASE... 🥁";
+        // CHANGED: Prompt wording accurately initialized to "the winner is ....."
+        drumrollStatus.textContent = "the winner is .....";
         ceremonyWinnerBox.classList.remove("pop-reveal");
         ceremonyContinueBtn.style.display = "none";
         drumrollCurtain.classList.add("show");
 
-        let winnerMessage = "";
+        let winnerNameText = "";
         let colorClass = "";
 
         if (p1Points > p2Points) {
-            winnerMessage = "👑 WINNER: PLAYER 1 (GREEN) 👑";
+            winnerNameText = "Player 1";
             colorClass = "winner-p1-color";
         } else if (p2Points > p1Points) {
-            winnerMessage = "👑 WINNER: PLAYER 2 (RED) 👑";
+            winnerNameText = "Player 2";
             colorClass = "winner-p2-color";
         } else {
-            winnerMessage = "🤝 IT'S A TIE SCORE MATCH! 🤝";
+            winnerNameText = "Tie Match!";
             colorClass = "winner-tie-color";
         }
 
-        // CHANGED: Extended timing logic to wait exactly 6000ms (6 seconds) before reveal
+        // CHANGED: Reduced duration limit down to precisely 4000ms (4 seconds)
         setTimeout(() => {
-            // Cut the drumroll loop right at the 6-second reveal mark
             audioDrumroll.pause();
 
-            drumrollStatus.textContent = "✨ AND THE WINNER IS... ✨";
-            ceremonyWinnerBox.textContent = winnerMessage;
+            // Clear original header out to give maximum focal pop-out attention to the winner's name
+            drumrollStatus.textContent = ""; 
+            
+            ceremonyWinnerBox.textContent = winnerNameText;
             ceremonyWinnerBox.className = "ceremony-winner-banner pop-reveal " + colorClass;
             
-            // Play success capture tone to accentuate winner reveal
             audioCatch.currentTime = 0;
             audioCatch.play().catch(e => {});
 
-            // Make the continue navigation button fully visible to the players
+            // Keep continue option visible here for explicit user progression to statistics layout sheet
             ceremonyContinueBtn.style.display = "block";
-        }, 6000); 
+        }, 4000); 
     }
 
-    /* NEW: Dedicated callback function executed when clicking Continue */
     function goToScoreboardScreen() {
         drumrollCurtain.classList.remove("show");
         triggerGameOver();
