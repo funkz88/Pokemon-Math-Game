@@ -206,7 +206,6 @@
         .success-text { color: #00ff66; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); }
         .fail-text { color: #ff9800; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); }
 
-        /* End Match Layout Mechanics */
         #gameover-title {
             font-size: 34px;
             color: #ffde00;
@@ -313,7 +312,6 @@
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
         }
 
-        /* Drum Roll & Ceremony Visual Styling System */
         #drumroll-curtain {
             background: radial-gradient(circle, #1a103c 20%, #050211 90%);
             animation: flashingBackground 0.2s infinite alternate;
@@ -367,11 +365,32 @@
             transform: scale(1);
         }
 
+        /* NEW: Continue button design inside the drumroll overlay */
+        #ceremony-continue-btn {
+            margin-top: 30px;
+            font-family: inherit;
+            font-size: 20px;
+            font-weight: bold;
+            color: #3b4cca;
+            background-color: #ffde00;
+            border: 4px solid #fff;
+            padding: 10px 30px;
+            border-radius: 12px;
+            cursor: pointer;
+            box-shadow: 0 6px 0px #b3a125;
+            display: none; /* Injected dynamically */
+            transition: transform 0.1s ease;
+        }
+
+        #ceremony-continue-btn:active {
+            transform: translateY(3px);
+            box-shadow: 0 3px 0px #b3a125;
+        }
+
         .winner-p1-color { color: #26ff26 !important; text-shadow: 0 0 20px #00ff00, 3px 3px 0px #000; }
         .winner-p2-color { color: #ff3333 !important; text-shadow: 0 0 20px #ff0000, 3px 3px 0px #000; }
         .winner-tie-color { color: #00ffff !important; text-shadow: 0 0 20px #00ffff, 3px 3px 0px #000; }
 
-        /* Arcade Flank Panels */
         .arcade-controls-flank {
             width: 100%;
             height: 100%;
@@ -445,6 +464,7 @@
 <audio id="audio-battle" loop preload="auto"><source src="battle.mp3" type="audio/mpeg"></audio>
 <audio id="audio-catch" preload="auto"><source src="catch.mp3" type="audio/mpeg"></audio>
 <audio id="audio-runaway" preload="auto"><source src="runaway.mp3" type="audio/mpeg"></audio>
+<audio id="audio-drumroll" loop preload="auto"><source src="drumroll.mp3" type="audio/mpeg"></audio>
 
 <div id="console-wrapper">
     <div class="arcade-controls-flank" id="controls-p1">
@@ -487,6 +507,7 @@
         <div id="drumroll-curtain" class="game-overlay">
             <div id="drumroll-status" class="drumroll-text-pulse">🥁 DRUM ROLL PLEASE... 🥁</div>
             <div id="ceremony-winner-box" class="ceremony-winner-banner"></div>
+            <button id="ceremony-continue-btn" onclick="goToScoreboardScreen()">Continue to Scoreboard ➔</button>
         </div>
 
         <div id="gameover-popup" class="game-overlay">
@@ -531,22 +552,25 @@
     const audioBattle = document.getElementById("audio-battle");
     const audioCatch = document.getElementById("audio-catch");
     const audioRunaway = document.getElementById("audio-runaway");
+    const audioDrumroll = document.getElementById("audio-drumroll");
 
     audioExplore.volume = 0.30;
     audioBattle.volume = 0.30;
     audioCatch.volume = 0.50; 
     audioRunaway.volume = 0.50; 
+    audioDrumroll.volume = 0.60;
 
     function syncTrackState() {
         if (!userHasInteracted) return;
         if (isGameOver) {
             audioExplore.pause();
             audioBattle.pause();
+            audioDrumroll.pause();
             activeTrack = 'none';
             return;
         }
         if (isPaused) {
-            if (activeTrack !== 'battle' && activeTrack !== 'sfx_playing') {
+            if (activeTrack !== 'battle' && activeTrack !== 'sfx_playing' && activeTrack !== 'ceremony') {
                 audioExplore.pause();
                 audioExplore.currentTime = 0; 
                 audioBattle.play().catch(e => console.log(e));
@@ -556,6 +580,7 @@
             if (activeTrack !== 'explore') {
                 audioBattle.pause();
                 audioBattle.currentTime = 0; 
+                audioDrumroll.pause();
                 audioExplore.play()
                     .then(() => { activeTrack = 'explore'; })
                     .catch(e => {
@@ -568,7 +593,7 @@
     function unlockAudioStream() {
         if (userHasInteracted) return;
         userHasInteracted = true;
-        const contextAudioTracks = [audioExplore, audioBattle, audioCatch, audioRunaway];
+        const contextAudioTracks = [audioExplore, audioBattle, audioCatch, audioRunaway, audioDrumroll];
         contextAudioTracks.forEach(track => {
             track.play().then(() => { track.pause(); track.currentTime = 0; }).catch(err => {});
         });
@@ -586,6 +611,7 @@
     const drumrollCurtain = document.getElementById("drumroll-curtain");
     const drumrollStatus = document.getElementById("drumroll-status");
     const ceremonyWinnerBox = document.getElementById("ceremony-winner-box");
+    const ceremonyContinueBtn = document.getElementById("ceremony-continue-btn");
     
     const pokemonMsg = document.getElementById("popup-pokemon-message");
     const pokemonImgElement = document.getElementById("pokemon-image");
@@ -599,9 +625,7 @@
     const GRID_SIZE = 20;
     const HUD_HEIGHT = 100; 
 
-    // EXACTLY 62 POKEMON
     const POKEMON_LIST = [
-        // --- Normal Pool (45 Pokemon) ---
         { id: "1", name: "Bulbasaur", tier: "normal" }, { id: "2", name: "Ivysaur", tier: "normal" }, { id: "3", name: "Venusaur", tier: "normal" },
         { id: "4", name: "Charmander", tier: "normal" }, { id: "5", name: "Charmeleon", tier: "normal" }, { id: "6", name: "Charizard", tier: "normal" },
         { id: "7", name: "Squirtle", tier: "normal" }, { id: "8", name: "Wartortle", tier: "normal" }, { id: "9", name: "Blastoise", tier: "normal" },
@@ -618,7 +642,6 @@
         { id: "175", name: "Togepi", tier: "normal" }, { id: "197", name: "Umbreon", tier: "normal" }, { id: "248", name: "Tyranitar", tier: "normal" },
         { id: "393", name: "Piplup", tier: "normal" }, { id: "445", name: "Garchomp", tier: "normal" }, { id: "448", name: "Lucario", tier: "normal" },
 
-        // --- Legendary Pool (17 Pokemon) ---
         { id: "144", name: "Articuno", tier: "legendary" }, { id: "145", name: "Zapdos", tier: "legendary" }, { id: "146", name: "Moltres", tier: "legendary" }, 
         { id: "150", name: "Mewtwo", tier: "legendary" }, { id: "151", name: "Mew", tier: "legendary" }, { id: "382", name: "Kyogre", tier: "legendary" },  
         { id: "791", name: "Solgaleo", tier: "legendary" }, { id: "1007", name: "Koraidon", tier: "legendary" }, { id: "249", name: "Lugia", tier: "legendary" },   
@@ -689,6 +712,7 @@
         drumrollCurtain.classList.remove("show");
         ceremonyWinnerBox.classList.remove("pop-reveal");
         ceremonyWinnerBox.className = "ceremony-winner-banner";
+        ceremonyContinueBtn.style.display = "none";
 
         snake1 = [{x: 160, y: 200}, {x: 140, y: 200}, {x: 120, y: 200}];
         dir1 = "RIGHT"; nextDir1 = "RIGHT"; baseSpeed1 = 2.5; grow1 = 0;
@@ -900,20 +924,26 @@
         }
     }
 
-    /* NEW: Drum Roll & Winner Announcement Ceremony Engine */
+    /* UPDATED: Structured 6-Second Build with Interactive Continue Button Flow */
     function triggerWinnerCeremonySequence() {
         isPaused = true;
         if(systemClockIntervalId) clearInterval(systemClockIntervalId);
         
+        // Silence ongoing explore or battle background soundtracks
         audioExplore.pause();
         audioBattle.pause();
 
-        // 1. Activate drum roll view
+        // Trigger and start looping the external drum roll sound file
+        activeTrack = 'ceremony';
+        audioDrumroll.currentTime = 0;
+        audioDrumroll.play().catch(e => console.log("Audio play blocked:", e));
+
+        // Setup the curtain screen overlay view
         drumrollStatus.textContent = "🥁 DRUM ROLL PLEASE... 🥁";
         ceremonyWinnerBox.classList.remove("pop-reveal");
+        ceremonyContinueBtn.style.display = "none";
         drumrollCurtain.classList.add("show");
 
-        // 2. Compute winner strings and classes
         let winnerMessage = "";
         let colorClass = "";
 
@@ -928,22 +958,28 @@
             colorClass = "winner-tie-color";
         }
 
-        // 3. Drop down winner banner after 2 seconds
+        // CHANGED: Extended timing logic to wait exactly 6000ms (6 seconds) before reveal
         setTimeout(() => {
+            // Cut the drumroll loop right at the 6-second reveal mark
+            audioDrumroll.pause();
+
             drumrollStatus.textContent = "✨ AND THE WINNER IS... ✨";
             ceremonyWinnerBox.textContent = winnerMessage;
             ceremonyWinnerBox.className = "ceremony-winner-banner pop-reveal " + colorClass;
             
-            // Re-use capture audio stream for a victory ding effect
+            // Play success capture tone to accentuate winner reveal
             audioCatch.currentTime = 0;
             audioCatch.play().catch(e => {});
-        }, 2200);
 
-        // 4. Move completely into the final stat overview boards after 4.5 seconds
-        setTimeout(() => {
-            drumrollCurtain.classList.remove("show");
-            triggerGameOver();
-        }, 5500);
+            // Make the continue navigation button fully visible to the players
+            ceremonyContinueBtn.style.display = "block";
+        }, 6000); 
+    }
+
+    /* NEW: Dedicated callback function executed when clicking Continue */
+    function goToScoreboardScreen() {
+        drumrollCurtain.classList.remove("show");
+        triggerGameOver();
     }
 
     function triggerGameOver() {
@@ -1378,21 +1414,18 @@
         ctx.textBaseline = "middle"; ctx.fillStyle = "#fff"; ctx.strokeStyle = "rgba(0,0,0,0.4)"; ctx.lineWidth = 4;
         ctx.font = "bold 22px Arial, Helvetica, sans-serif"; 
 
-        // P1 Status Panel
         ctx.textAlign = "left";
         let p1Tag = `🟢 P1 Score: ${p1Points}`;
         if (p1StarTime > 0) p1Tag += ` 🌟(${p1StarTime}s)`;
         if (p1WormTime > 0) p1Tag += ` 🪱🤢(${p1WormTime}s)`;
         ctx.strokeText(p1Tag, 15, HUD_HEIGHT / 2); ctx.fillText(p1Tag, 15, HUD_HEIGHT / 2);
 
-        // P2 Status Panel
         ctx.textAlign = "right";
         let p2Tag = `🔴 P2 Score: ${p2Points}`;
         if (p2StarTime > 0) p2Tag += ` 🌟(${p2StarTime}s)`;
         if (p2WormTime > 0) p2Tag += ` 🪱🤢(${p2WormTime}s)`;
         ctx.strokeText(p2Tag, canvas.width - 15, HUD_HEIGHT / 2); ctx.fillText(p2Tag, canvas.width - 15, HUD_HEIGHT / 2);
 
-        // Central Arena Clock Display
         ctx.save(); ctx.fillStyle = "#222"; ctx.strokeStyle = "#ffde00"; ctx.lineWidth = 3;
         drawRoundRect(ctx, canvas.width / 2 - 70, HUD_HEIGHT / 2 - 25, 140, 50, 10, true); ctx.stroke();
         ctx.fillStyle = "#ffde00"; ctx.font = "bold 24px monospace"; ctx.textAlign = "center";
